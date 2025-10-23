@@ -1,9 +1,6 @@
 
 nextflow.enable.dsl=2
 
-/*
- * Process 1: FASTP_TRIM (Trimming and Stricter QC)
- */
 process FASTP_TRIM {
 
     publishDir "TRIMMED", mode:'copy'
@@ -24,11 +21,6 @@ process FASTP_TRIM {
     """
 }
 
-// ----------------------------------------------------------------------------------
-
-/*
- * Process 2: FASTQC_TRIMMED (Post-Trimming QC Check)
- */
 process FASTQC_TRIMMED {
 
     publishDir "QC_TRIMMED", mode: 'copy'
@@ -55,11 +47,11 @@ process HISAT2_INDEX {
     publishDir "HISAT2_INDEX", mode: 'copy'
     conda 'bioconda::hisat2=2.2.1'
 
-    cpus 1 // Restrict to 1 CPU for stability
+    cpus 1 
     memory '12 GB'
 
     input:
-        path(fasta) // Reference genome FASTA
+        path(fasta) 
 
     output:
         path "genome.*.ht2", emit: hisat2_index_base
@@ -128,21 +120,17 @@ workflow {
     strand = Channel.of(params.strand)
 
     // 1. Trimming (Structural call - will be SKIPPED)
-    //FASTP_TRIM(fastq_ch).set{ trimmed }
+    FASTP_TRIM(fastq_ch).set{ trimmed }
 
     // 2. QC (Structural call - will be SKIPPED)
-    //fastqc_input_ch = trimmed.trimmed_R1.join(trimmed.trimmed_R2)
-    //FASTQC_TRIMMED(fastqc_input_ch).set { fastqc_reports }
-
-    trimmed_reads_ch = Channel.fromFilePairs('TRIMMED/*R{1,2}.trimmed.fq.gz')
-        .map { sampleid, reads -> tuple(sampleid, reads[0], reads[1]) }    
+    fastqc_input_ch = trimmed.trimmed_R1.join(trimmed.trimmed_R2)
+    FASTQC_TRIMMED(fastqc_input_ch).set { fastqc_reports }
 
     // 3. Indexing (Structural call - will be SKIPPED)
-    //HISAT2_INDEX(ref_fasta).set { hisat2_index_base }
-    hisat2_index_base = Channel.fromPath('HISAT2_INDEX/genome.*.ht2')
+    HISAT2_INDEX(ref_fasta).set { hisat2_index_base }
 
     // 4. Alignment and Counting (The first incomplete job, where execution will start)
-    final_alignment_channel = trimmed_reads_ch
+    final_alignment_channel = fastqc_input_ch 
         .combine(hisat2_index_base)
         .combine(ref_gtf)
         .combine(strand)
