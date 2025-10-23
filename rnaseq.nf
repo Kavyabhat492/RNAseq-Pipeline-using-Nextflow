@@ -113,23 +113,23 @@ process ALIGN_AND_COUNT {
 
 workflow {
 
-    // Define input channels
+    // input channels
     ref_fasta = Channel.fromPath(params.ref_fasta)
     ref_gtf = Channel.fromPath(params.ref_gtf)
     fastq_ch = Channel.fromFilePairs(params.reads)
     strand = Channel.of(params.strand)
 
-    // 1. Trimming (Structural call - will be SKIPPED)
+    // 1. Trimming 
     FASTP_TRIM(fastq_ch).set{ trimmed }
 
-    // 2. QC (Structural call - will be SKIPPED)
+    // 2. QC 
     fastqc_input_ch = trimmed.trimmed_R1.join(trimmed.trimmed_R2)
     FASTQC_TRIMMED(fastqc_input_ch).set { fastqc_reports }
 
-    // 3. Indexing (Structural call - will be SKIPPED)
+    // 3. Indexing 
     HISAT2_INDEX(ref_fasta).set { hisat2_index_base }
 
-    // 4. Alignment and Counting (The first incomplete job, where execution will start)
+    // 4. Alignment and Counting 
     final_alignment_channel = fastqc_input_ch 
         .combine(hisat2_index_base)
         .combine(ref_gtf)
